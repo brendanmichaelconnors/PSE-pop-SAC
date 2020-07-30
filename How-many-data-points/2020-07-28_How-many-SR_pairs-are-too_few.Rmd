@@ -1,9 +1,9 @@
 ---
 output:
-  pdf_document: default
+  html_document: default
   keep_tex: yes
   word_document: default
-  html_document: default
+  pdf_document: default
 ---
 
 <style>
@@ -12,27 +12,29 @@ p.caption {
 }
 </style>
 
-### Influence of the number of spawner-recruitment data points on biological benchmarks in Pacific Salmon
+### Influence of the number of spawner-recruitment data points (and hierarchical models) on biological benchmarks in Pacific Salmon
 
 B. Connors
 
 `r Sys.Date()`
 
 #### Background 
-The Pacific Salmon Foundation (PSF) has developed a set of decision rules to quantify the biological status of salmon Conservation Units (CUs) in the [Pacific Salmon Explorer](www.salmonexplorer.ca). One decison rule is that a minimum of three spawner-recruitment data points are required to generate a spawner-recruitment relationship and calculate benchmarks using a hierarchical Bayesian model, following [Korman and English (2013)](https://salmonwatersheds.ca/libraryfiles/lib_318.pdf). However, the Population Science Committee has cautioned that a minimum of three spawner-recruitment pairs seemed too low and vulnerable to natural and sampling variance which may lead to overestimates of intrinsic productivity and the strength of density dependence (e.g., [Freckleton et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2006.01121.x), [Knape and de Valpine 2012](https://onlinelibrary.wiley.com/doi/full/10.1111/j.1461-0248.2011.01702.x)). It was therefore suggested that a sensitivity analysis be carried out to determine how much spawner-recruitment based biological benchmarks change with increasing numbers of data points used to estiamte them. The Population Science Committee has also encouraged the PSF to better understand the potential benefits and limitations of using hierarchical spawner-recruitment models to derive biological benchmakrs and asses CU status.
+The Pacific Salmon Foundation (PSF) has developed a set of decision rules to quantify the biological status of salmon Conservation Units (CUs) in the [Pacific Salmon Explorer](www.salmonexplorer.ca). One decision rule is that a minimum of three spawner-recruitment data points are required to generate a spawner-recruitment relationship and calculate benchmarks using a hierarchical Bayesian model, following [Korman and English (2013)](https://salmonwatersheds.ca/libraryfiles/lib_318.pdf). However, the Population Science Committee has cautioned that a minimum of three spawner-recruitment pairs seemed too low and vulnerable to natural and sampling variance which may lead to overestimates of intrinsic productivity and the strength of density dependence (e.g., [Freckleton et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2006.01121.x), [Knape and de Valpine 2012](https://onlinelibrary.wiley.com/doi/full/10.1111/j.1461-0248.2011.01702.x)). It was therefore suggested that a sensitivity analysis be carried out to determine how much spawner-recruitment based biological benchmarks change with increasing numbers of data points used to estimate them. The Population Science Committee has also encouraged the PSF to better understand the potential benefits and limitations of using hierarchical spawner-recruitment models to derive biological benchmarks and asses CU status and so the sensitivity analyses would be more informative if it contrasted the influence of the numbers of data points on benchmarks for both individual and hierarchical models.
 
-All code and associated data to reproduce this document can be found on Github [here](https://github.com/brendanmichaelconnors/SSHI-sockeye). 
+All code and associated data to reproduce this document can be found on Github [here](https://github.com/brendanmichaelconnors/PSE-pop-SAC/tree/master/How-many-data-points). 
 
 #### Methods
-To quantify the influence of the number of spawner-recruitment (S-R) data points on the estimation of biological benchmarks I randomly sampled (without replacement) S-R data points and estimated Smsy 1000 times for each of a range of sample sizes for a collection of CUs from the Skeena River Basin (data provided by E. Hertz PSF). For each iteration I calculated Smsy from estimates of alpha (intercept) and beta (slope) from a linearized Ricker model fit to the S-R data individually for each CU, as well as hiearchically where all S-R data points for non-focal CUs were used. I calculated bias in Smsy as the percentage difference in estimated Smsy (for a given number of S-R data points) and Smsy estimated from the full time series. 
+To quantify the influence of the number of spawner-recruitment (S-R) data points on the estimation of biological benchmarks I randomly sampled (without replacement) S-R data points and estimated Smsy 1000 times for each of a range of sample sizes for a collection of CUs from the Skeena River Basin (data provided by E. Hertz PSF). For each iteration I calculated Smsy from estimates of alpha (intercept) and beta (slope) from a linearized Ricker model fit to the S-R data individually for each CU, as well as hierarchically where all S-R data points for non-focal CUs were used. I calculated bias in Smsy as the percent difference in estimated Smsy (for a given number of S-R data points) and Smsy estimated from the full time series. 
 
 #### Results
-* Bias in Smsy declined with increasing number of S-R data points; median bias was close to zero for most CUs (13 of 17) when at least 13 S-R data points were used to estiamte it.
+* Bias in Smsy declined with increasing number of S-R data points; median bias was close to zero for most CUs (13 of 17) when at least 13 S-R data points were used to estimate it.
 * Bias in Smsy tended to be negative (i.e., Smsy was underestimated) for most CUs (13 of 17). 
-* The magnitude of negative bias in Smsy tended to be inversely related to the intrinsic productivity of the CU (i.e., low productivity CUs like #188 have largest negative bias in Smsy at small sample sizes)
-* Bias in Smsy was reduced when derived from a hierarchical model instead of an individual model, and this reduction in bias tended to be greatest for those CUs that fell on the low end of the distribution of intrinsic productivities (i.e., were the least productive) 
+* The magnitude of negative bias in Smsy tended to be inversely related to intrinsic productivity (i.e., low productivity CUs like #188 exhibited the largest negative bias in Smsy at small sample sizes).
+* Bias in Smsy was reduced when derived from a hierarchical instead of individual model, and this reduction in bias tended to be greatest for those CUs that fell on the low end of the distribution of intrinsic productivities (i.e., were the least productive).
 
-
+&nbsp;
+ 
+ 
 ```{r , message=FALSE, warning=FALSE, echo=FALSE}
 ## load required packages and functions
 
@@ -156,7 +158,7 @@ write.csv(Smsy_estimates.all.df.long, file="LS_Smsy_estimates.all.df.long.csv")
 
 ```
 
-```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 6, fig.width = 8, fig.align = "left", fig.cap = "**Figure 1**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Lake Sockeye**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown the % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data. "}
+```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 6.5, fig.width = 9, fig.align = "left", fig.cap = "**Figure 1**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Lake Sockeye**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown the % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data. "}
 # pick which species to consider
 SR_data <- subset(brood_table, Species == "Lake Sockeye")
 
@@ -207,8 +209,10 @@ p + geom_boxplot(position = "dodge2", outlier.size = -1 ) +
 ggsave("Lake_sockeye.pdf")
 
 ```
-
-```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 3.25, fig.width = 4.8, fig.align = "left", fig.cap = "**Figure 2**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Chinook**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown is % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data."}
+&nbsp;
+ 
+ 
+```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 3.65, fig.width = 5.5, fig.align = "left", fig.cap = "**Figure 2**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Chinook**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown is % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data."}
 # pick which species to consider
 SR_data <- subset(brood_table, Species == "Chinook")
 
@@ -258,7 +262,10 @@ p + geom_boxplot(position = "dodge2", outlier.size = -1 ) +
 ggsave("Chinook.pdf")
 
 ```
+&nbsp;
+ 
+ 
 #### Conclusions
-* Deriving biological benchmarks from relatively few spawner-recruitment data points (e.g., less than 13) is likely to result in underetimates of  benchmarks and hence biologicaly optimistic (mis)classifications of status. Underestimates of biological benchmarks are likely to be greatest for the most biologically vulnerable CUs (i.e., least intrinsicaly productive).
-* The use of a hierarchical models to derive benchmarks is likely to reduce bias in biological benchmarks at low S-R sample sizes.
-* Future work could consider using simulations to more thoroughly explore the individual and combined influence of time series lenght, intrinsic productivity, magnituide of recruitment variation on the estimation of biological bencharks.
+* Deriving biological benchmarks from relatively few spawner-recruitment data points (e.g., less than 13) is likely to result in underestimates of benchmarks and hence biologically optimistic (mis)classifications of status. Underestimates of biological benchmarks are likely to be greatest for the most biologically vulnerable CUs (i.e., least intrinsically productive).
+* The use of hierarchical models to derive benchmarks likely reduces bias in biological benchmarks at low S-R sample sizes.
+* Future work could consider using closed loop simulations to more thoroughly explore the individual and combined influence of time series length, intrinsic productivity, magnitude of recruitment variation and harvest history on the estimation of biological benchmarks using both individual and hierarchical models.
