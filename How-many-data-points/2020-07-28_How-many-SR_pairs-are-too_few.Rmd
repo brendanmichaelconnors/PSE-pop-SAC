@@ -1,0 +1,264 @@
+---
+output:
+  html_document: default
+  keep_tex: yes
+  word_document: default
+  pdf_document: default
+---
+
+<style>
+p.caption {
+  font-size: 0.85em;
+}
+</style>
+
+### Influence of the number of spawner-recruitment data points on biological benchmarks in Pacific Salmon
+
+B. Connors
+
+`r Sys.Date()`
+
+#### Background 
+The Pacific Salmon Foundation (PSF) has developed a set of decision rules to quantify the biological status of salmon Conservation Units (CUs) in the [Pacific Salmon Explorer](www.salmonexplorer.ca). One decison rule is that a minimum of three spawner-recruitment data points are required to generate a spawner-recruitment relationship and calculate benchmarks using a hierarchical Bayesian model, following [Korman and English (2013)](https://salmonwatersheds.ca/libraryfiles/lib_318.pdf). However, the Population Science Committee has cautioned that a minimum of three spawner-recruitment pairs seemed too low and vulnerable to natural and sampling variance which may lead to overestimates of intrinsic productivity and the strength of density dependence (e.g., [Freckleton et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2006.01121.x), [Knape and de Valpine 2012](https://onlinelibrary.wiley.com/doi/full/10.1111/j.1461-0248.2011.01702.x)). It was therefore suggested that a sensitivity analysis be carried out to determine how much spawner-recruitment based biological benchmarks change with increasing numbers of data points used to estiamte them. The Population Science Committee has also encouraged the PSF to better understand the potential benefits and limitations of using hierarchical spawner-recruitment models to derive biological benchmakrs and asses CU stats.
+
+All code and associated data to reproduce this document can be found on Github [here](https://github.com/brendanmichaelconnors/SSHI-sockeye). 
+
+#### Methods
+To quantify the influence of the number of spawner-recruitment (S-R) data points on the estimation of biological benchmarks I randomly sampled (without replacement) S-R data points and estimated Smsy 1000 times for each of a range of sample sizes for a collection of CUs from the Skeena River Basin (data provided by E. Hertz PSF). For each iteration I calculated Smsy from estimates of alpha (intercept) and beta (slope) from a linearized Ricker model fit to the S-R data individually for each CU, as well as hiearchically where all S-R data points for non-focal CUs were used. I calculated bias in Smsy as the percentage difference in estimated Smsy (for a given number of S-R data points) and Smsy estimated from the full time series. 
+
+#### Results
+* Bias in Smsy declined with increasing number of S-R data points; median bias was close to zero for most CUs (13 of 17) when at least 13 S-R data points were used to estiamte it.
+* Bias in Smsy tended to be negative (i.e., Smsy was underestimated) for most CUs (13 of 17). 
+* The magnitude of negative bias in Smsy tended to be inversely related to the intrinsic productivity of the CU (i.e., low productivity CUs like #188 have largest negative bias in Smsy at small sample sizes)
+* Bias in Smsy was reduced when derived from a hierarchical model instead of an individual model, and this reduction in bias tended to be greatest for those CUs that fell on the low end of the distribution of intrinsic productivities (i.e., were the least productive) 
+
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE}
+## load required packages and functions
+
+library(tidyverse)
+library(gsl)
+library(lme4)
+library(plyr)
+library(ggsidekick)
+
+```
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE, print=FALSE}
+## load Skeena PSE spawner-recruitment data 
+raw_brood_table <- read.csv("dataset_5.April082019.csv")
+
+## clean up brood table, drop brood years with missing data
+brood_table <- raw_brood_table %>%
+  select(CUID, Species,Year, Spawners, Recruits) %>%
+  drop_na(Recruits, Spawners)
+
+## how many spawner-recruitment points are there per CU and species? 
+#brood_table %>%
+#  group_by(CUID,Species) %>%
+#  tally() %>%
+#  as.data.frame()
+```
+
+```{r, message=FALSE, echo=FALSE}
+## a couple of simple functions to fit linearized Ricker models to a specified number of SR data points and estimate Smsy 
+
+# single CU
+get_smsy <- function(data, no_SR_pairs){
+  data <- data[sample(length(data$Year),no_SR_pairs),]
+  model <- lm(log(data$Recruits/data$Spawners)~data$Spawners)
+  Smsy <- (1-lambert_W0(exp(1-model$coefficients[1]))) / abs(model$coefficients[2])
+  return(Smsy)
+}  
+
+# all CUS - i.e., hierarchical
+get_smsy_hier <- function(data, no_SR_pairs, CU){
+  CU_data <- subset(data, CUID == CU)
+  CU_index <- which(unique(data$CUID)==k)
+  other_CU_data <- subset(data, CUID != CU)
+  CU_data <- CU_data[sample(length(CU_data$Year),no_SR_pairs),]
+  data <- rbind(CU_data,other_CU_data)
+  data$CUID<-as.character(data$CUID)
+  model <- lmer(log(Recruits/Spawners)~Spawners:CUID + (1|CUID), data = data)
+  alpha <- fixef(model)[[1]]+ranef(model)$CUID[CU_index,1]
+  beta <- fixef(model)[[CU_index+1]]
+  Smsy <- (1-lambert_W0(exp(1-alpha))) / abs(beta)
+  return(Smsy)
+}  
+```
+
+```{r , warning=FALSE, eval=FALSE, echo=FALSE}
+## loop through a range of spawner-recruit data points and estimate Smsy, 1000 times for each level of SR pair, for both individual and hierarchical models
+
+# pick which species to consider
+SR_data <- subset(brood_table, Species == "Chinook")
+SR_data <- subset(brood_table, Species == "Lake Sockeye")
+
+# settings and placeholders
+no_sims <- 1000
+no_cus <- length(unique(SR_data$CUID))
+Smsy_estimates_ind <- array(NA,dim=c(no_sims,48,no_cus),
+                            dimnames=list(seq(1:no_sims),
+                                          seq(1:48),
+                                          as.character(unique(SR_data$CUID))))
+med_smsy_ind <- no_cus
+
+Smsy_estimates_hier <- array(NA,dim=c(no_sims,48,no_cus),
+                             dimnames=list(seq(1:no_sims),
+                                           seq(1:48),
+                                           as.character(unique(SR_data$CUID))))
+med_smsy_hier <- med_smsy_ind
+
+# loop through CUs
+for(k in unique(SR_data$CUID)){
+  CU_data <- subset(SR_data, CUID == k)
+  max_data_points <- length(CU_data$Year)
+  CU_index <- which(unique(SR_data$CUID)==k)
+  for(i in 3:max_data_points){
+    for(j in 1:no_sims){
+     Smsy_estimates_ind[j,i,CU_index] <- get_smsy(CU_data,i)
+     Smsy_estimates_hier[j,i,CU_index] <- get_smsy_hier(SR_data,i,k)
+      }
+    }
+  med_smsy_ind[CU_index] <- median(Smsy_estimates_ind[j,max_data_points,CU_index])
+  med_smsy_hier[CU_index] <- median(Smsy_estimates_hier[j,max_data_points,CU_index])
+  }
+
+# manipulate into long form data frame
+Smsy_estimates.df.long <- adply(Smsy_estimates_ind,c(1,2,3))
+colnames(Smsy_estimates.df.long) <- c("rep","data_points","CU","Smsy")
+Smsy_estimates.df.long$data_points <- as.numeric(Smsy_estimates.df.long$data_points)
+Smsy_estimates.df.long <- subset(Smsy_estimates.df.long,data_points>2)
+Smsy_estimates.df.long$model <- "Individual"
+Smsy_estimates.df.long$bias <- NA
+
+Smsy_estimates.hier.df.long <- adply(Smsy_estimates_hier,c(1,2,3))
+colnames(Smsy_estimates.hier.df.long) <- c("rep","data_points","CU","Smsy")
+Smsy_estimates.hier.df.long$data_points <- as.numeric(Smsy_estimates.hier.df.long$data_points)
+Smsy_estimates.hier.df.long <- subset(Smsy_estimates.hier.df.long,data_points>2)
+Smsy_estimates.hier.df.long$model <- "Hierarchical"
+Smsy_estimates.hier.df.long$bias <- NA
+
+true_smsy_ind <- cbind(unique(SR_data$CUID),med_smsy_ind); as.numeric(true_smsy_ind[,2])
+true_smsy_hier <- cbind(unique(SR_data$CUID),med_smsy_hier)
+
+# estimate bias in Smsy
+for(w in unique(SR_data$CUID)){
+  Smsy_estimates.df.long[Smsy_estimates.df.long$CU==w,]$bias<-(((Smsy_estimates.df.long[Smsy_estimates.df.long$CU==w,]$Smsy)/as.numeric(true_smsy_ind[true_smsy_ind[,1]==w,2]))-1)*100
+  
+  Smsy_estimates.hier.df.long[Smsy_estimates.hier.df.long$CU==w,]$bias<-(((Smsy_estimates.hier.df.long[Smsy_estimates.hier.df.long$CU==w,]$Smsy)/as.numeric(true_smsy_hier[true_smsy_hier[,1]==w,2]))-1)*100
+  }
+
+Smsy_estimates.all.df.long <- rbind(Smsy_estimates.df.long, Smsy_estimates.hier.df.long)
+
+write.csv(Smsy_estimates.all.df.long, file="CH_Smsy_estimates.all.df.long.csv")
+write.csv(Smsy_estimates.all.df.long, file="LS_Smsy_estimates.all.df.long.csv")
+
+```
+
+```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 6, fig.width = 8, fig.align = "left", fig.cap = "**Figure 1**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Lake Sockeye**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown the % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data. "}
+# pick which species to consider
+SR_data <- subset(brood_table, Species == "Lake Sockeye")
+
+# load simulations and subset which data points to plot
+Smsy_estimates.all.df.long <- read.csv("LS_Smsy_estimates.all.df.long.csv")
+Smsy_estimates.all.df.long.short <- subset(Smsy_estimates.all.df.long, data_points == c(3,8,13,18,23,28,33,38,43,48))
+
+#### Estimate alpha and Smax by CU (individual and hierarchical models)
+alphas.ind <- matrix(NA,1,length(unique((SR_data$CUID))))
+smax.ind <- alphas.ind
+
+for(k in unique(SR_data$CUID)){
+  CU_data <- subset(SR_data, CUID == k)
+  CU_index <- which(unique(SR_data$CUID)==k)
+  model <- lm(log(CU_data$Recruits/CU_data$Spawners)~CU_data$Spawners)
+  alphas.ind[CU_index] <- model$coefficients[1]
+  smax.ind[CU_index] <- 1/abs(model$coefficients[2])
+  }
+
+SR_data$CUID<-as.character(SR_data$CUID)
+model.hier <- lmer(log(Recruits/Spawners)~Spawners:CUID + (1|CUID), data = SR_data)
+alphas.hier <- round(exp(fixef(model.hier)[[1]]+ranef(model.hier)$CUID[,1]),digits=2)
+smax.hier <- round(1/(abs(fixef(model.hier)[2:14])))
+
+# create panel labels (CUID + productivity)
+
+Smsy_estimates.all.df.long.short$CU_w_alpha <- NA
+
+for(w in unique(Smsy_estimates.all.df.long.short$CU)){
+  CU_index <- which(unique(Smsy_estimates.all.df.long.short$CU)==w)
+  Smsy_estimates.all.df.long.short[Smsy_estimates.all.df.long.short$CU==w,]$CU_w_alpha <- paste(w,"(prod.=", alphas.hier[CU_index],")", sep=" ") 
+  }   
+
+# plot
+p <- ggplot(Smsy_estimates.all.df.long.short, aes(x= cut_width(data_points,1), y = bias, fill = model))
+p + geom_boxplot(position = "dodge2", outlier.size = -1 ) +
+  facet_wrap(~ CU_w_alpha)+
+  scale_x_discrete(labels=c("3", "8", "13", "18", "23", "28", "32", "38", "43", "48")) +
+  coord_cartesian(ylim=c(-100,100))+
+  labs(x = "Number of spawner-recruit data points",
+       y = "Bias in Smsy (%)") +
+  theme_sleek() +
+  theme(axis.text = element_text(size=6)) +
+  geom_hline(yintercept = 0) +
+  ggtitle("Sockeye (prod.=4.94) ") +
+  scale_fill_viridis_d(alpha = 0.5,"Spawner-recruit\nmodel")
+
+ggsave("Lake_sockeye.pdf")
+
+```
+
+```{r ,echo=FALSE, warning=FALSE, message=FALSE, fig.height = 3.25, fig.width = 4.8, fig.align = "left", fig.cap = "**Figure 2**. Influence of the number of spawner-recruitment data points on estimates of Smsy in **Skeena Chinook**. Each panel is a different CU (number above panels with estimate of intrinsic prouctivity in parentheses) and shown is % bias in Smsy for a given number of spawner-recruitment data points relative to the estimate of Smsy for the complete time series. Estimates of Smsy are show for individual and hiearchical (i.e., all CUs) models fit the data."}
+# pick which species to consider
+SR_data <- subset(brood_table, Species == "Chinook")
+
+# load simulations and subset which data points to plot
+Smsy_estimates.all.df.long <- read.csv("CH_Smsy_estimates.all.df.long.csv")
+Smsy_estimates.all.df.long.short <- subset(Smsy_estimates.all.df.long, data_points == c(3,8,13,18,23,28,33,38,43,48))
+
+#### Estimate alpha and Smax by CU (individual and hierarchical models)
+alphas.ind <- matrix(NA,1,length(unique((SR_data$CUID))))
+smax.ind <- alphas.ind
+
+for(k in unique(SR_data$CUID)){
+  CU_data <- subset(SR_data, CUID == k)
+  CU_index <- which(unique(SR_data$CUID)==k)
+  model <- lm(log(CU_data$Recruits/CU_data$Spawners)~CU_data$Spawners)
+  alphas.ind[CU_index] <- model$coefficients[1]
+  smax.ind[CU_index] <- 1/abs(model$coefficients[2])
+  }
+
+SR_data$CUID<-as.character(SR_data$CUID)
+model.hier <- lmer(log(Recruits/Spawners)~Spawners:CUID + (1|CUID), data = SR_data)
+alphas.hier <- round(exp(fixef(model.hier)[[1]]+ranef(model.hier)$CUID[,1]),digits=2)
+smax.hier <- round(1/(abs(fixef(model.hier)[2:14])))
+
+# create panel labels (CUID + productivity)
+Smsy_estimates.all.df.long.short$CU_w_alpha <- NA
+
+for(w in unique(Smsy_estimates.all.df.long.short$CU)){
+  CU_index <- which(unique(Smsy_estimates.all.df.long.short$CU)==w)
+  Smsy_estimates.all.df.long.short[Smsy_estimates.all.df.long.short$CU==w,]$CU_w_alpha <- paste(w,"(prod.=", alphas.hier[CU_index],")", sep=" ") 
+  }   
+
+# plot
+p <- ggplot(Smsy_estimates.all.df.long.short, aes(x= cut_width(data_points,1), y = bias, fill = model))
+p + geom_boxplot(position = "dodge2", outlier.size = -1 ) +
+  facet_wrap(~ CU_w_alpha)+
+  scale_x_discrete(labels=c("3", "8", "13", "18", "23", "28", "32", "38", "43", "48")) +
+  coord_cartesian(ylim=c(-100,100))+
+  labs(x = "Number of spawner-recruit data points",
+       y = "Bias in Smsy (%)") +
+  theme_sleek() +
+  theme(axis.text = element_text(size=6)) +
+  geom_hline(yintercept = 0) +
+  ggtitle("Chinook (prod.=6.28) ") +
+  scale_fill_viridis_d(alpha = 0.5,"Spawner-recruit\nmodel")
+
+ggsave("Chinook.pdf")
+
+```
+#### Conclusions
+* Deriving biological benchmarks from relatively few spawner-recruitment data points (e.g., less than 13) is likely to result in underetimates of  benchmarks and hence biologicaly optimistic (mis)classifications of status. Underestimates of biological benchmarks are likely to be greatest for the most biologically vulnerable CUs (i.e., least intrinsicaly productive).
+* The use of a hierarchical models to derive benchmarks is likely to reduce bias in biological benchmarks at low S-R sample sizes.
+* Future work could consider using simulations to more thoroughly explore the individual and combined influence of time series lenght, intrinsic productivity, magnituide of recruitment variation on the estimation of biological bencharks.

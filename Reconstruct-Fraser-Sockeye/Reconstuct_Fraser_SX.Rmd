@@ -1,0 +1,57 @@
+---
+output:
+  html_document: default
+  keep_tex: yes
+  word_document: default
+  pdf_document: default
+---
+#### Can PSF back-calculate harvest from files it current has on Fraser sockeye? 
+
+B. Connors
+
+`r Sys.Date()`
+
+Basic idea here is to use the data you have in hand to estimate harvest for recent years where you do not currently have estimates. This involves using the estimates of recruits by brood year through 2017 in the Sockdat file  to estimate total returns by year, and then using the spawner estimates through 2017 from the Fraser_age_2019 file to estimate harvest (returns - spawners). 
+
+##### Load data
+```{r , message=FALSE, warning=FALSE}
+brood_table_efs <- read.csv("Sockdat.csv")
+brood_table_efs$returns <- brood_table_efs$juv # create placeholder for return data
+brood_table <- read.csv("Fraser_age_2019-June.csv")
+```
+##### Loop through stocks and years to estimate total return by return year in Sockdat file
+
+```{r , warning=FALSE}
+for (j in unique(brood_table_efs$PopID)){
+    for (i in 6:(length(brood_table_efs[brood_table_efs$PopID==j,]$yr))){
+          brood_table_efs[brood_table_efs$PopID==j,]$returns[i] <- (brood_table_efs[brood_table_efs$PopID==j,]$rec3[i-3]
+          + brood_table_efs[brood_table_efs$PopID==j,]$rec4[i-4]
+          + brood_table_efs[brood_table_efs$PopID==j,]$rec5[i-5])
+    }
+}
+```
+Now you would want to merge the above dataset with total returns with the Fraser-age_2019 dataset that has spawners, problem is you need to first decode which CU's correspond to the stock #s in the Sockdat file. Since I do not know this I am going to give an example for one system, Shuswap_late, which is stock #9 in the Sockdat file.
+
+##### Subset both files and drop years that are not in both files
+```{r , message=FALSE, warning=FALSE}
+data_1 <- subset(brood_table_efs, PopID == 9)[3:70,]
+data_2 <- subset(brood_table, CU_Name == "Shuswap_Late")[1:68,]
+```
+
+##### Merge files by yr, estimate harvest
+```{r , message=FALSE, warning=FALSE}
+data_2$yr <- data_2$BroodYear 
+data_3 <- merge(data_1,data_2)
+data_3$harvest <- (data_3$returns*1000000)-data_3$Escape
+data_3$er_infered <- data_3$harvest/(data_3$returns*1000000)
+```
+So we have estimated harvest by year through 2016, but how do these quick and dirty estimates compare to the "official" ones provided by PSC?
+
+##### Compare infered and "official" exploitation rates
+```{r , message=FALSE, warning=FALSE}
+
+plot(data_3$Total.ER, data_3$er_infered,type="p",ylim=c(0,1))
+
+```
+
+Yikes! This shows that the back-of-the-envelope approach we took here does not do a good job at estimating harvest rates (overestimates at low harvest rates and under estimates at high harvest rates). So... I would suggest not wasting any time trying to go this route and resign yourself to waiting for offical data from the PSC.
