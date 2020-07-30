@@ -1,9 +1,9 @@
 ---
 output:
-  html_document: default
+  pdf_document: default
   keep_tex: yes
   word_document: default
-  pdf_document: default
+  html_document: default
 ---
 
 <style>
@@ -19,7 +19,7 @@ B. Connors
 `r Sys.Date()`
 
 #### Background 
-The Pacific Salmon Foundation (PSF) has developed a set of decision rules to quantify the biological status of salmon Conservation Units (CUs) in the [Pacific Salmon Explorer](www.salmonexplorer.ca). One decison rule is that a minimum of three spawner-recruitment data points are required to generate a spawner-recruitment relationship and calculate benchmarks using a hierarchical Bayesian model, following [Korman and English (2013)](https://salmonwatersheds.ca/libraryfiles/lib_318.pdf). However, the Population Science Committee has cautioned that a minimum of three spawner-recruitment pairs seemed too low and vulnerable to natural and sampling variance which may lead to overestimates of intrinsic productivity and the strength of density dependence (e.g., [Freckleton et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2006.01121.x), [Knape and de Valpine 2012](https://onlinelibrary.wiley.com/doi/full/10.1111/j.1461-0248.2011.01702.x)). It was therefore suggested that a sensitivity analysis be carried out to determine how much spawner-recruitment based biological benchmarks change with increasing numbers of data points used to estiamte them. The Population Science Committee has also encouraged the PSF to better understand the potential benefits and limitations of using hierarchical spawner-recruitment models to derive biological benchmakrs and asses CU stats.
+The Pacific Salmon Foundation (PSF) has developed a set of decision rules to quantify the biological status of salmon Conservation Units (CUs) in the [Pacific Salmon Explorer](www.salmonexplorer.ca). One decison rule is that a minimum of three spawner-recruitment data points are required to generate a spawner-recruitment relationship and calculate benchmarks using a hierarchical Bayesian model, following [Korman and English (2013)](https://salmonwatersheds.ca/libraryfiles/lib_318.pdf). However, the Population Science Committee has cautioned that a minimum of three spawner-recruitment pairs seemed too low and vulnerable to natural and sampling variance which may lead to overestimates of intrinsic productivity and the strength of density dependence (e.g., [Freckleton et al. 2006](https://besjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2656.2006.01121.x), [Knape and de Valpine 2012](https://onlinelibrary.wiley.com/doi/full/10.1111/j.1461-0248.2011.01702.x)). It was therefore suggested that a sensitivity analysis be carried out to determine how much spawner-recruitment based biological benchmarks change with increasing numbers of data points used to estiamte them. The Population Science Committee has also encouraged the PSF to better understand the potential benefits and limitations of using hierarchical spawner-recruitment models to derive biological benchmakrs and asses CU status.
 
 All code and associated data to reproduce this document can be found on Github [here](https://github.com/brendanmichaelconnors/SSHI-sockeye). 
 
